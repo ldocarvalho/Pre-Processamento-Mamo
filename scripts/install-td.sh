@@ -7,7 +7,6 @@ if ((BASH_VERSINFO[0] < 4)); then
   exit 1
 fi
 
-# --- Check gh CLI ---
 command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI not found"; exit 1; }
 
 echo "▶ Installing Technical Debt package (Kanban ready)..."
@@ -15,7 +14,7 @@ echo "▶ Installing Technical Debt package (Kanban ready)..."
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 OWNER=${REPO%%/*}
 
-PROJECT_NAME="Technical Debt Management Test Automation"
+PROJECT_NAME="Technical Debt Management"
 STATUS_FIELD_NAME="Status"
 
 STATUSES=(
@@ -32,7 +31,7 @@ STATUSES=(
 mkdir -p .github/ISSUE_TEMPLATE
 mkdir -p .github/workflows
 
-# --- Create issue template ---
+# --- Issue template ---
 cat > .github/ISSUE_TEMPLATE/td-traceability.yml <<'EOF'
 name: TD Traceability
 description: Register and track a Technical Debt item
@@ -68,58 +67,26 @@ EOF
 
 echo "✔ Issue template created."
 
-# --- Workflow ---
+# --- Workflow placeholder (IDs to be filled after creation) ---
 cat > .github/workflows/td-project-automation.yml <<'EOF'
 name: TD Project Automation
-
 on:
   issues:
-    types: [opened, labeled]
-
+    types: [opened]
 jobs:
-  sync-status:
+  add-to-project:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const map = {
-              "TD identified": "__TD_IDENTIFIED__",
-              "TD documented": "__TD_DOCUMENTED__",
-              "TD communicated": "__TD_COMMUNICATED__",
-              "TD prioritized": "__TD_PRIORITIZED__",
-              "TD in repayment": "__TD_IN_REPAYMENT__",
-              "TD in monitoring": "__TD_IN_MONITORING__",
-              "TD archived": "__TD_ARCHIVED__",
-              "TD ignored": "__TD_IGNORED__"
-            };
-
-            const issueId = context.payload.issue.node_id;
-            const label = context.payload.label?.name || "TD identified";
-            const projectId = "__PROJECT_ID__";
-            const fieldId = "__STATUS_FIELD_ID__";
-
-            const item = await github.graphql(`
-              mutation {
-                addProjectV2ItemById(input:{projectId:"${projectId}",contentId:"${issueId}"}) { item { id } }
-              }
-            `);
-
-            await github.graphql(`
-              mutation {
-                updateProjectV2ItemFieldValue(input:{
-                  projectId:"${projectId}",
-                  itemId:"${item.addProjectV2ItemById.item.id}",
-                  fieldId:"${fieldId}",
-                  value:{ singleSelectOptionId:"${map[label]}" }
-                }) { projectV2Item { id } }
-            `);
+            // Placeholders will be replaced by install-td.sh
 EOF
 
-echo "✔ Workflow created."
+echo "✔ Workflow created (placeholders to be replaced)."
 
-# --- Get owner node id ---
+# --- Owner node id ---
 OWNER_NODE_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ id } }' -f login="$OWNER" -q .data.user.id)
 
 # --- Create/fetch Project V2 ---
@@ -139,7 +106,7 @@ fi
 
 echo "✔ Project ID: $PROJECT_ID"
 
-# --- Create Status field (empty) ---
+# --- Create Status field ---
 FIELD_ID=$(gh api graphql -f query='
 mutation($project:ID!, $name:String!) {
   createProjectV2Field(input:{projectId:$project,dataType:SINGLE_SELECT,name:$name}) { projectV2Field { ... on ProjectV2SingleSelectField { id } } }
@@ -157,9 +124,8 @@ echo "✔ Status Field ID: $FIELD_ID"
 # --- Add options and labels ---
 declare -A OPTIONS
 echo "▶ Creating options and labels..."
-
 for STATUS in "${STATUSES[@]}"; do
-  # Add Project option
+  # Add option
   OPTION_ID=$(gh api graphql -f query='
 mutation($field:ID!, $name:String!){
   addProjectV2SingleSelectOption(input:{fieldId:$field,name:$name}){ option { ... on ProjectV2SingleSelectFieldOption { id } } }

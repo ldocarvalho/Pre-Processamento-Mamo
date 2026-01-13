@@ -1,45 +1,13 @@
 name: TD Project Automation
-
 on:
   issues:
-    types: [opened, labeled]
-
+    types: [opened]
 jobs:
-  sync-status:
+  add-to-project:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const map = {
-              "TD identified": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD documented": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD communicated": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD prioritized": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD in repayment": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD in monitoring": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD archived": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}",
-              "TD ignored": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}"
-            };
-
-            const issueId = context.payload.issue.node_id;
-            const label = context.payload.label?.name || "TD identified";
-            const projectId = "PVT_kwHOAq_dJ84BMfFh";
-            const fieldId = "{"data":{"createProjectV2Field":null},"errors":[{"type":"UNPROCESSABLE","path":["createProjectV2Field"],"locations":[{"line":3,"column":3}],"message":"At least one singleSelectOption is required for data_type SINGLE_SELECT."}]}";
-
-            const item = await github.graphql(`
-              mutation {
-                addProjectV2ItemById(input:{projectId:"${projectId}",contentId:"${issueId}"}) { item { id } }
-              }
-            `);
-
-            await github.graphql(`
-              mutation {
-                updateProjectV2ItemFieldValue(input:{
-                  projectId:"${projectId}",
-                  itemId:"${item.addProjectV2ItemById.item.id}",
-                  fieldId:"${fieldId}",
-                  value:{ singleSelectOptionId:"${map[label]}" }
-                }) { projectV2Item { id } }
-            `);
+            // Placeholders will be replaced by install-td.sh
