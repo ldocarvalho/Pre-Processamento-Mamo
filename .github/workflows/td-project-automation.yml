@@ -2,7 +2,7 @@ name: TD Project Automation
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
 
 jobs:
   sync-status:
@@ -23,14 +23,13 @@ jobs:
               "TD ignored": "{"errors":[{"path":["mutation","addProjectV2SingleSelectOption"],"extensions":{"code":"undefinedField","typeName":"Mutation","fieldName":"addProjectV2SingleSelectOption"},"locations":[{"line":3,"column":3}],"message":"Field 'addProjectV2SingleSelectOption' doesn't exist on type 'Mutation'"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"field"},"locations":[{"line":2,"column":1}],"message":"Variable $field is declared by anonymous mutation but not used"},{"path":["mutation"],"extensions":{"code":"variableNotUsed","variableName":"name"},"locations":[{"line":2,"column":1}],"message":"Variable $name is declared by anonymous mutation but not used"}]}"
             };
 
-            const label = context.payload.label.name;
-            if (!map[label]) return;
-
-            const projectId = "PVT_kwHOAq_dJ84BMfBc";
-            const fieldId = "{"data":{"createProjectV2Field":null},"errors":[{"type":"UNPROCESSABLE","path":["createProjectV2Field"],"locations":[{"line":3,"column":3}],"message":"At least one singleSelectOption is required for data_type SINGLE_SELECT."}]}";
             const issueId = context.payload.issue.node_id;
+            const label = context.payload.label?.name || "TD identified"; // default
 
-            const added = await github.graphql(`
+            const projectId = "PVT_kwHOAq_dJ84BMfDH";
+            const fieldId = "{"data":{"createProjectV2Field":null},"errors":[{"type":"UNPROCESSABLE","path":["createProjectV2Field"],"locations":[{"line":3,"column":3}],"message":"At least one singleSelectOption is required for data_type SINGLE_SELECT."}]}";
+
+            const item = await github.graphql(`
               mutation {
                 addProjectV2ItemById(input:{
                   projectId:"${projectId}",
@@ -39,13 +38,15 @@ jobs:
               }
             `);
 
+            const columnId = map[label] || map["TD identified"];
+
             await github.graphql(`
               mutation {
                 updateProjectV2ItemFieldValue(input:{
                   projectId:"${projectId}",
-                  itemId:"${added.addProjectV2ItemById.item.id}",
+                  itemId:"${item.addProjectV2ItemById.item.id}",
                   fieldId:"${fieldId}",
-                  value:{ singleSelectOptionId:"${map[label]}" }
+                  value:{ singleSelectOptionId:"${columnId}" }
                 }) { projectV2Item { id } }
               }
             `);

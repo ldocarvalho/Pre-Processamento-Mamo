@@ -11,7 +11,6 @@ body:
       description: Describe the issue or problem identified
     validations:
       required: true
-
   - type: textarea
     id: impact
     attributes:
@@ -19,13 +18,11 @@ body:
       description: Describe the impact for tech or business
     validations:
       required: true
-
   - type: textarea
     id: evidences
     attributes:
       label: Evidences
       description: Links to videos, code, logs
-
   - type: textarea
     id: additional
     attributes:
