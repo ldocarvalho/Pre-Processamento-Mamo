@@ -1,0 +1,33 @@
+name: TD Traceability
+description: Register and track a Technical Debt item
+title: "[TD] "
+labels:
+  - TD identified
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Describe the issue or problem identified
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe the impact for tech or business
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidences
+    attributes:
+      label: Evidences
+      description: Links to videos, code, logs
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional details
+      description: Original pull request, app version, analytics
