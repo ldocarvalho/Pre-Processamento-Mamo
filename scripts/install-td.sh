@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
-echo "▶ Installing Technical Debt package (Kanban ready)..."
-
-# --- Bash 4+ check ---
+# --- Check Bash version ---
 if ((BASH_VERSINFO[0] < 4)); then
   echo "❌ Bash 4+ is required."
   exit 1
 fi
 
-# --- GitHub CLI check ---
-command -v gh >/dev/null 2>&1 || {
-  echo "❌ GitHub CLI (gh) not found. Install: https://cli.github.com/"
-  exit 1
-}
+# --- Check gh CLI ---
+command -v gh >/dev/null 2>&1 || { echo "❌ GitHub CLI not found"; exit 1; }
+
+echo "▶ Installing Technical Debt package (Kanban ready)..."
 
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 OWNER=${REPO%%/*}
 
-PROJECT_NAME="Technical Debt Traceability"
+PROJECT_NAME="Technical Debt Management Test Automation"
 STATUS_FIELD_NAME="Status"
 
 STATUSES=(
@@ -32,11 +29,10 @@ STATUSES=(
   "TD ignored"
 )
 
-# --- Create folders ---
 mkdir -p .github/ISSUE_TEMPLATE
 mkdir -p .github/workflows
 
-# --- Issue Template ---
+# --- Create issue template ---
 cat > .github/ISSUE_TEMPLATE/td-traceability.yml <<'EOF'
 name: TD Traceability
 description: Register and track a Technical Debt item
@@ -100,21 +96,15 @@ jobs:
             };
 
             const issueId = context.payload.issue.node_id;
-            const label = context.payload.label?.name || "TD identified"; // default
-
+            const label = context.payload.label?.name || "TD identified";
             const projectId = "__PROJECT_ID__";
             const fieldId = "__STATUS_FIELD_ID__";
 
             const item = await github.graphql(`
               mutation {
-                addProjectV2ItemById(input:{
-                  projectId:"${projectId}",
-                  contentId:"${issueId}"
-                }) { item { id } }
+                addProjectV2ItemById(input:{projectId:"${projectId}",contentId:"${issueId}"}) { item { id } }
               }
             `);
-
-            const columnId = map[label] || map["TD identified"];
 
             await github.graphql(`
               mutation {
@@ -122,22 +112,21 @@ jobs:
                   projectId:"${projectId}",
                   itemId:"${item.addProjectV2ItemById.item.id}",
                   fieldId:"${fieldId}",
-                  value:{ singleSelectOptionId:"${columnId}" }
+                  value:{ singleSelectOptionId:"${map[label]}" }
                 }) { projectV2Item { id } }
-              }
             `);
 EOF
 
 echo "✔ Workflow created."
 
-# --- Create Project V2 ---
-echo "▶ Creating/fetching Project..."
+# --- Get owner node id ---
+OWNER_NODE_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ id } }' -f login="$OWNER" -q .data.user.id)
+
+# --- Create/fetch Project V2 ---
 PROJECT_ID=$(gh api graphql -f query='
 mutation($owner:ID!, $title:String!) {
-  createProjectV2(input:{ownerId:$owner,title:$title}) {
-    projectV2 { id }
-  }
-}' -f owner=$(gh api users/$OWNER -q .node_id) -f title="$PROJECT_NAME" -q .data.createProjectV2.projectV2.id 2>/dev/null || true)
+  createProjectV2(input:{ownerId:$owner,title:$title}) { projectV2 { id } }
+}' -f owner="$OWNER_NODE_ID" -f title="$PROJECT_NAME" -q .data.createProjectV2.projectV2.id 2>/dev/null || true)
 
 if [ -z "$PROJECT_ID" ]; then
   PROJECT_ID=$(gh api graphql -f query='
@@ -150,56 +139,47 @@ fi
 
 echo "✔ Project ID: $PROJECT_ID"
 
-# --- Status field ---
-echo "▶ Creating/fetching Status field..."
+# --- Create Status field (empty) ---
 FIELD_ID=$(gh api graphql -f query='
 mutation($project:ID!, $name:String!) {
-  createProjectV2Field(input:{
-    projectId:$project,
-    dataType:SINGLE_SELECT,
-    name:$name
-  }) {
-    projectV2Field { ... on ProjectV2SingleSelectField { id } }
-  }
+  createProjectV2Field(input:{projectId:$project,dataType:SINGLE_SELECT,name:$name}) { projectV2Field { ... on ProjectV2SingleSelectField { id } } }
 }' -f project="$PROJECT_ID" -f name="$STATUS_FIELD_NAME" -q .data.createProjectV2Field.projectV2Field.id 2>/dev/null || true)
 
 if [ -z "$FIELD_ID" ]; then
   FIELD_ID=$(gh api graphql -f query='
 query($project:ID!) {
-  node(id:$project) {
-    ... on ProjectV2 { fields(first:100) { nodes { id name } } }
-  }
+  node(id:$project){ ... on ProjectV2 { fields(first:100){ nodes{ ... on ProjectV2SingleSelectField { id name } } } } }
 }' -f project="$PROJECT_ID" -q ".data.node.fields.nodes[] | select(.name==\"$STATUS_FIELD_NAME\") | .id")
 fi
 
 echo "✔ Status Field ID: $FIELD_ID"
 
-# --- Options & labels ---
+# --- Add options and labels ---
 declare -A OPTIONS
+echo "▶ Creating options and labels..."
 
-echo "▶ Creating/fetching options and labels..."
 for STATUS in "${STATUSES[@]}"; do
+  # Add Project option
   OPTION_ID=$(gh api graphql -f query='
-mutation($field:ID!, $name:String!) {
-  addProjectV2SingleSelectOption(input:{fieldId:$field,name:$name}) {
-    option { ... on ProjectV2SingleSelectFieldOption { id } }
-  }
+mutation($field:ID!, $name:String!){
+  addProjectV2SingleSelectOption(input:{fieldId:$field,name:$name}){ option { ... on ProjectV2SingleSelectFieldOption { id } } }
 }' -f field="$FIELD_ID" -f name="$STATUS" -q .data.addProjectV2SingleSelectOption.option.id 2>/dev/null || true)
 
+  # If exists, fetch id
   if [ -z "$OPTION_ID" ]; then
     OPTION_ID=$(gh api graphql -f query='
-query($field:ID!) {
-  node(id:$field) { ... on ProjectV2SingleSelectField { options { nodes { id name } } } }
+query($field:ID!){
+  node(id:$field){ ... on ProjectV2SingleSelectField{ options(first:100){ nodes{ ... on ProjectV2SingleSelectFieldOption{ id name } } } } }
 }' -f field="$FIELD_ID" -q ".data.node.options.nodes[] | select(.name==\"$STATUS\") | .id")
   fi
 
   OPTIONS["$STATUS"]="$OPTION_ID"
 
+  # Create label
   gh label create "$STATUS" --repo "$REPO" --force >/dev/null || true
 done
 
-# --- Update workflow IDs ---
-echo "▶ Updating workflow placeholders..."
+# --- Update workflow placeholders ---
 sed -i.bak \
   -e "s|__PROJECT_ID__|$PROJECT_ID|g" \
   -e "s|__STATUS_FIELD_ID__|$FIELD_ID|g" \
@@ -212,7 +192,6 @@ sed -i.bak \
   -e "s|__TD_ARCHIVED__|${OPTIONS["TD archived"]}|g" \
   -e "s|__TD_IGNORED__|${OPTIONS["TD ignored"]}|g" \
   .github/workflows/td-project-automation.yml
-
 rm .github/workflows/td-project-automation.yml.bak
 
-echo "✅ Technical Debt package installed! All issues now go to Kanban Project automatically."
+echo "✅ Technical Debt package installed! Kanban columns are visible, workflow active, labels created."

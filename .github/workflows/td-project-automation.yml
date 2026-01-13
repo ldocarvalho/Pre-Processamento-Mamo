@@ -24,21 +24,15 @@ jobs:
             };
 
             const issueId = context.payload.issue.node_id;
-            const label = context.payload.label?.name || "TD identified"; // default
-
-            const projectId = "PVT_kwHOAq_dJ84BMfDH";
+            const label = context.payload.label?.name || "TD identified";
+            const projectId = "PVT_kwHOAq_dJ84BMfFh";
             const fieldId = "{"data":{"createProjectV2Field":null},"errors":[{"type":"UNPROCESSABLE","path":["createProjectV2Field"],"locations":[{"line":3,"column":3}],"message":"At least one singleSelectOption is required for data_type SINGLE_SELECT."}]}";
 
             const item = await github.graphql(`
               mutation {
-                addProjectV2ItemById(input:{
-                  projectId:"${projectId}",
-                  contentId:"${issueId}"
-                }) { item { id } }
+                addProjectV2ItemById(input:{projectId:"${projectId}",contentId:"${issueId}"}) { item { id } }
               }
             `);
-
-            const columnId = map[label] || map["TD identified"];
 
             await github.graphql(`
               mutation {
@@ -46,7 +40,6 @@ jobs:
                   projectId:"${projectId}",
                   itemId:"${item.addProjectV2ItemById.item.id}",
                   fieldId:"${fieldId}",
-                  value:{ singleSelectOptionId:"${columnId}" }
+                  value:{ singleSelectOptionId:"${map[label]}" }
                 }) { projectV2Item { id } }
-              }
             `);
