@@ -1,0 +1,33 @@
+name: TD Status Sync
+on:
+  issues:
+    types: [opened, labeled, unlabeled]
+  workflow_dispatch:
+jobs:
+  sync-status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const projectTitle = "Technical Debt Kanban";
+            const statusFieldName = "Status";
+            const issueLabels = context.payload.issue.labels.map(l=>l.name);
+            const projectIdQuery = `query {
+              repository(owner:"${context.repo.owner}", name:"${context.repo.repo}") {
+                projectsV2(first:10) { nodes { id title fields(first:20){ nodes { id name } } } }
+              }
+            }`;
+            const projectResp = await github.graphql(projectIdQuery);
+            const project = projectResp.repository.projectsV2.nodes.find(p=>p.title===projectTitle);
+            if(!project) return;
+            const statusField = project.fields.nodes.find(f=>f.name===statusFieldName);
+            if(!statusField) return;
+            const currentLabel = issueLabels.find(l=>l.startsWith("TD "));
+            if(currentLabel){
+              await github.graphql(`mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionName:String!){
+                updateProjectV2ItemField(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:$optionName}){ projectV2Item{ id } }
+              }`, { projectId: project.id, itemId: context.payload.issue.node_id, fieldId: statusField.id, optionName: currentLabel });
+            }

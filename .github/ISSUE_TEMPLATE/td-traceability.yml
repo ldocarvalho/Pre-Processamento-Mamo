@@ -1,5 +1,4 @@
 name: TD Traceability
-description: Register and track a Technical Debt item
 title: "[TD] "
 labels:
   - TD identified

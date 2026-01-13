@@ -1,0 +1,60 @@
+name: TD Project Sync
+on:
+  issues:
+    types: [opened, labeled, unlabeled]
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Move issue in TD Project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const statuses = [
+              "TD identified",
+              "TD documented",
+              "TD communicated",
+              "TD prioritized",
+              "TD in repayment",
+              "TD in monitoring",
+              "TD archived",
+              "TD ignored"
+            ];
+            const projectTitle = "TD Management";
+            const issue = context.payload.issue;
+
+            // Busca o Project
+            const { data: projects } = await github.graphql(`
+              query($owner:String!,$name:String!) {
+                repository(owner:$owner,name:$name){
+                  projectsV2(first:50){
+                    nodes{id title}
+                  }
+                }
+              }`, { owner: context.repo.owner, name: context.repo.repo });
+
+            const project = projects.repository.projectsV2.nodes.find(p=>p.title===projectTitle);
+            if(!project) return;
+
+            // Busca colunas
+            const { data: fieldsData } = await github.graphql(`
+              query($projectId:ID!) {
+                node(id:$projectId){ ... on ProjectV2{ fields(first:50){ nodes{id name} } } }
+              }`, { projectId: project.id });
+
+            const field = fieldsData.node.fields.nodes.find(f => statuses.includes(f.name));
+            if(!field) return;
+
+            // Determina a coluna de destino com base na label
+            const label = issue.labels.find(l=>statuses.includes(l.name));
+            if(!label) return;
+            const column = fieldsData.node.fields.nodes.find(f=>f.name===label.name);
+            if(!column) return;
+
+            // Adiciona ou move item
+            await github.graphql(`
+              mutation($projectId:ID!,$issueId:ID!){
+                addProjectV2ItemById(input:{projectId:$projectId,contentId:$issueId}){ item{ id } }
+              }`, { projectId: project.id, issueId: issue.node_id });
